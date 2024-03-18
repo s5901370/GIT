@@ -84,6 +84,7 @@ if __name__ == '__main__':
         ['Walk down the steps and stop at the bottom. '],
         ['It is a cat.']
     ]
+    
     scorer = Scorers(ref,gt)
     # scorer = Scorers(gt,ref)
     total_score = scorer.compute_scores()

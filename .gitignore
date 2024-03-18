@@ -1,2 +1,8 @@
 __pycache__/
 *.pyc
+*.sh
+aux_data
+build
+*log
+output
+generativeimage2text.egg-info
