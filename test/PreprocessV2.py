@@ -37,7 +37,7 @@ def find_miss_file(dataset,name):
     count = {}
     total = {}
     miss_img_set = set() #ret.add  len(ret)
-    for d in dataset:
+    for d in tqdm(dataset):
 
         # get episode
         sum += 1
@@ -65,11 +65,11 @@ def find_miss_file(dataset,name):
             # print(k)
             # print('count = ',v,', length = ',total[k])
     print('mis img epi = ',len(miss_img_set))
-    # with open(name, 'wb') as handle:
-    #     pickle.dump(miss_img_set, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    with open(name, 'wb') as handle:
+        pickle.dump(miss_img_set, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 
-def print_img(dataset,des,miss_set,jsonl_name):
+def print_img(dataset,des,miss_set,jsonl_name,category):
     writer = jsonlines.open(jsonl_name, mode='a')
     for d in tqdm(dataset):
         ex = tf.train.Example()
@@ -83,43 +83,51 @@ def print_img(dataset,des,miss_set,jsonl_name):
         # only write one time
         if step_id == 0:
             goal_info = ex.features.feature['goal_info'].bytes_list.value[0].decode('utf-8')
-            writer.write({"id":ep_id,"goal_info":goal_info,"episode_length":ep_length})
+            writer.write({"category":category,"id":ep_id,"goal_info":goal_info,"episode_length":ep_length})
         Image.fromarray(_decode_image(ex)).save(f"{des}{ep_id}-{step_id}-{ep_length}.jpg")
     writer.close()
 
 
 
-
-
 def main():
-    N = 1000
-    data_src = '/data/poyang/android-in-the-wild/google_apps/'
-    data_des = '/data/poyang/no-miss-AITW/GoogleApps/'
-    jsonl_name = f'no_miss_{N}_train.jsonl'
-    pkl_name = f'AiTW_Miss_Img_ID_{N}.pickle'
-    # file0 = 'google_apps-00000-of-08688' #88
-    # file1 = 'google_apps-00001-of-08688' #205
-    files_in_directory = os.listdir(data_src)
-    # print(len(files_in_directory))#8687
-    # print(files_in_directory[:105])
-    # train_files = [data_src+file0]
-    # train_files = [data_src+file0,data_src+file1]
-    # train_files = [(data_src + i) for i in files_in_directory]
+    # N = 1000
+    # dir = ['general','install','web_shopping']
+    # category = 'GoogleApps'
+    # dir = ['General','GoogleApps','Install','WebShopping']
+    dir = ['General','Install','WebShopping']
+    # for category in dir:
+    for category in dir:
+        data_src = f'/data/poyang/android-in-the-wild/{category}/'
+        data_des = f'/data/poyang/no-miss-AITW/{category}/'
+        # jsonl_name = f'no_miss_1000_train.jsonl'
+        jsonl_name = f'no_miss_{category}_train.jsonl'
+        pkl_name = f'AiTW_Miss_Img_ID_{category}.pickle'
+        # pkl_name = f'AiTW_Miss_Img_ID_1000.pickle'
 
-    # last time :105
-    # last time 105:1000
-    # next time 1000:
-    train_files = [(data_src + i) for i in files_in_directory[105:N]]
-    raw_dataset = tf.data.TFRecordDataset(train_files, compression_type='GZIP').as_numpy_iterator()
+        # pkl_name = f'AiTW_Miss_Img_ID_{category}.pickle'
+        # file0 = 'google_apps-00000-of-08688' #88
+        # file1 = 'google_apps-00001-of-08688' #205
+        files_in_directory = os.listdir(data_src)
+        # print(len(files_in_directory))#8687
+        # print(files_in_directory[:105])
+        # train_files = [data_src+file0]
+        # train_files = [data_src+file0,data_src+file1]
+        train_files = [(data_src + i) for i in files_in_directory]
 
-    # record id who misses images
-    # find_miss_file(raw_dataset,pkl_name)
+        # last time :105
+        # last time 105:1000
+        # next time 1000:
+        # train_files = [(data_src + i) for i in files_in_directory[:1000]]
+        raw_dataset = tf.data.TFRecordDataset(train_files, compression_type='GZIP').as_numpy_iterator()
 
-    # load pickle
-    with open(pkl_name, 'rb') as handle:
-        loaded_set = pickle.load(handle)
-    print_img(raw_dataset,data_des,loaded_set,jsonl_name)
-    # print(loaded_set)
+        # record id who misses images
+        # find_miss_file(raw_dataset,pkl_name)
+
+        # load pickle
+        with open(pkl_name, 'rb') as handle:
+            loaded_set = pickle.load(handle)
+        print_img(raw_dataset,data_des,loaded_set,jsonl_name,category)
+        # print(loaded_set)
         
     
     

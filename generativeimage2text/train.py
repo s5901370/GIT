@@ -339,6 +339,7 @@ def mytrain(param,args):
     'bs':32 ,     batch size
     'acc_step':4, accumulation steps
     'pat':5,      patience for early stop, but may not use
+    'load_path':'/data/poyang/checkpoint/', 
     'ckpt_path':'/data/cv/poyang/' path to save model
     'exp_name'
     '''
@@ -370,6 +371,24 @@ def mytrain(param,args):
     else:
         optimizer = torch.optim.AdamW(params=model.parameters(), lr=args['lr'], weight_decay=args['wd'])
         scheduler = get_cosine_schedule_with_warmup(optimizer, num_warmup_steps=num_warmup_steps, num_training_steps=num_training_steps)
+    
+    if 'load_path' in args.keys():
+        if args['use_dif_lr']:
+            checkpoint = torch.load(args['load_path'])
+            model.load_state_dict(checkpoint['model'])
+            optimizer_img.load_state_dict(checkpoint['optimizer_img'])
+            optimizer_tex.load_state_dict(checkpoint['optimizer_tex'])
+            optimizer_emb.load_state_dict(checkpoint['optimizer_emb'])
+            scheduler_img.load_state_dict(checkpoint['scheduler_img'])
+            scheduler_tex.load_state_dict(checkpoint['scheduler_tex'])
+            scheduler_emb.load_state_dict(checkpoint['scheduler_emb'])
+        else:
+            checkpoint = torch.load(args['load_path'])
+            model.load_state_dict(checkpoint['model'])
+            optimizer.load_state_dict(checkpoint['optimizer'])
+            scheduler.load_state_dict(checkpoint['scheduler'])
+
+
     # batch = next(iter(TrainLoader))
     # data = recursive_to_device(data, 'cuda')
     # return ######################
@@ -456,23 +475,24 @@ def mytrain(param,args):
         # save models
         if valid_score > best_score:
             print(f"Best model found at epoch {epoch + 1}, saving model")
-            if args['use_dif_lr']:
-                checkpoint = {
-                    'model':model.state_dict(),
-                    'optimizer_img':optimizer_img.state_dict(),
-                    'optimizer_tex':optimizer_tex.state_dict(),
-                    'optimizer_emb':optimizer_emb.state_dict(),
-                    'scheduler_img':scheduler_img.state_dict(),
-                    'scheduler_tex':scheduler_tex.state_dict(),
-                    'scheduler_emb':scheduler_tex.state_dict(),
-                }
-            else:
-                checkpoint = {
-                    'model':model.state_dict(),
-                    'optimizer':optimizer.state_dict(),
-                    'scheduler':scheduler_img.state_dict(),
-                }
-            torch.save(checkpoint,f"{args['ckpt_path']}{logfile}.ckpt")
+            # if args['use_dif_lr']:
+            #     checkpoint = {
+            #         'model':model.state_dict(),
+            #         'optimizer_img':optimizer_img.state_dict(),
+            #         'optimizer_tex':optimizer_tex.state_dict(),
+            #         'optimizer_emb':optimizer_emb.state_dict(),
+            #         'scheduler_img':scheduler_img.state_dict(),
+            #         'scheduler_tex':scheduler_tex.state_dict(),
+            #         'scheduler_emb':scheduler_tex.state_dict(),
+            #     }
+            # else:
+            #     checkpoint = {
+            #         'model':model.state_dict(),
+            #         'optimizer':optimizer.state_dict(),
+            #         'scheduler':scheduler_img.state_dict(),
+            #     }
+            # torch.save(checkpoint,
+            # f"{args['ckpt_path']}{args['exp_name']}_lr{args['lr']}_wd{args['wd']}_im{param.get('num_image_with_embedding')}.ckpt")
             best_score = valid_score
             stale = 0
         else:
