@@ -6,3 +6,5 @@ build
 *log
 output
 generativeimage2text.egg-info
+*jsonl
+*pickle
