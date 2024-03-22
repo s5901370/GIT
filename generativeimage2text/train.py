@@ -475,24 +475,24 @@ def mytrain(param,args):
         # save models
         if valid_score > best_score:
             print(f"Best model found at epoch {epoch + 1}, saving model")
-            # if args['use_dif_lr']:
-            #     checkpoint = {
-            #         'model':model.state_dict(),
-            #         'optimizer_img':optimizer_img.state_dict(),
-            #         'optimizer_tex':optimizer_tex.state_dict(),
-            #         'optimizer_emb':optimizer_emb.state_dict(),
-            #         'scheduler_img':scheduler_img.state_dict(),
-            #         'scheduler_tex':scheduler_tex.state_dict(),
-            #         'scheduler_emb':scheduler_tex.state_dict(),
-            #     }
-            # else:
-            #     checkpoint = {
-            #         'model':model.state_dict(),
-            #         'optimizer':optimizer.state_dict(),
-            #         'scheduler':scheduler_img.state_dict(),
-            #     }
-            # torch.save(checkpoint,
-            # f"{args['ckpt_path']}{args['exp_name']}_lr{args['lr']}_wd{args['wd']}_im{param.get('num_image_with_embedding')}.ckpt")
+            if args['use_dif_lr']:
+                checkpoint = {
+                    'model':model.state_dict(),
+                    'optimizer_img':optimizer_img.state_dict(),
+                    'optimizer_tex':optimizer_tex.state_dict(),
+                    'optimizer_emb':optimizer_emb.state_dict(),
+                    'scheduler_img':scheduler_img.state_dict(),
+                    'scheduler_tex':scheduler_tex.state_dict(),
+                    'scheduler_emb':scheduler_tex.state_dict(),
+                }
+            else:
+                checkpoint = {
+                    'model':model.state_dict(),
+                    'optimizer':optimizer.state_dict(),
+                    'scheduler':scheduler.state_dict(),
+                }
+            torch.save(checkpoint,
+            f"{args['ckpt_path']}{args['exp_name']}_lr{args['lr']}_wd{args['wd']}_im{param.get('num_image_with_embedding')}.ckpt")
             best_score = valid_score
             stale = 0
         else:
