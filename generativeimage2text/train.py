@@ -359,6 +359,7 @@ def mytrain(param,args):
     # param = {'num_image_with_embedding':6}
     device = torch.device(args.get('cuda','cuda') if torch.cuda.is_available() else "cpu")
     model = get_git_model(tokenizer, param)   
+    model.to(device)
     num_training_steps = len(TrainLoader) / args['acc_step'] * args['epoch'] 
     num_warmup_steps = int(0.1 * num_training_steps)
     if args['use_dif_lr']:
@@ -373,6 +374,7 @@ def mytrain(param,args):
         scheduler = get_cosine_schedule_with_warmup(optimizer, num_warmup_steps=num_warmup_steps, num_training_steps=num_training_steps)
     
     if 'load_path' in args.keys():
+        print(f"load model from {args['load_path']}")
         if args['use_dif_lr']:
             checkpoint = torch.load(args['load_path'])
             model.load_state_dict(checkpoint['model'])
@@ -392,7 +394,6 @@ def mytrain(param,args):
     # batch = next(iter(TrainLoader))
     # data = recursive_to_device(data, 'cuda')
     # return ######################
-    model.to(device)
     # print('before training')
     # print(model.img_temperal_embedding[2].grad)
     stale = 0

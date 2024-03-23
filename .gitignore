@@ -1,6 +1,8 @@
 __pycache__/
 *.pyc
-*.sh
+3080.sh
+6000.sh
+demo.sh
 aux_data
 build
 *log
