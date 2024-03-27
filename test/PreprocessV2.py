@@ -87,7 +87,15 @@ def print_img(dataset,des,miss_set,jsonl_name,category):
         Image.fromarray(_decode_image(ex)).save(f"{des}{ep_id}-{step_id}-{ep_length}.jpg")
     writer.close()
 
+def findWH(example):
 
+    image = tf.io.decode_raw(
+        example.features.feature['image/encoded'].bytes_list.value[0],
+        out_type=tf.uint8,
+    )
+    image_height = example.features.feature['image/height'].int64_list.value[0]
+    image_width = example.features.feature['image/width'].int64_list.value[0]
+    return (image_width,image_height)
 
 def main():
     # N = 1000
@@ -132,12 +140,37 @@ def main():
     
     
 
-
-
+def countWH():
+    dir = ['General','GoogleApps','Install','WebShopping']
+    count = {} #ret.add  len(ret)
+    for category in dir:
+        count_in = {}
+        data_src = f'/data/poyang/android-in-the-wild/{category}/'
+        files_in_directory = os.listdir(data_src)
+        train_files = [(data_src + i) for i in files_in_directory]
+        raw_dataset = tf.data.TFRecordDataset(train_files, compression_type='GZIP').as_numpy_iterator()
+        for i,d in enumerate(tqdm(raw_dataset)):
+            ex = tf.train.Example()
+            ex.ParseFromString(d)
+            ret = findWH(ex)
+            if ret not in count:
+                count[ret] = 1
+            else:
+                count[ret] += 1
+            if ret not in count_in:
+                count_in[ret] = 1
+            else:
+                count_in[ret] += 1
+        print(category)
+        print(count_in)
+    print('total')
+    print(count)
+    
 
 
 if __name__ == '__main__':
-    main()
+    # main()
+    countWH()
 
 
 
