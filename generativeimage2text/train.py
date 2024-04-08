@@ -339,20 +339,22 @@ def mytrain(param,args):
     'bs':32 ,     batch size
     'acc_step':4, accumulation steps
     'pat':5,      patience for early stop, but may not use
-    'load_path':'/data/poyang/checkpoint/', 
+    'load_path':'/data/poyang/checkpoint/TryLowWD_lr1e-05_wd0.01_im6.ckpt',
     'ckpt_path':'/data/cv/poyang/' path to save model
     'exp_name'
     '''
     args['lr'] = float(args['lr'])
-    annotations_file = '/home/poyang/test/no_miss_1000_train.jsonl'
+    annotations_file = '/home/poyang/GIT/test/no_miss_1000_train.jsonl'
+    # annotations_file = '/home/poyang/GIT/test/no_miss_GoogleApps_train.jsonl'
     data_path = '/data/poyang/no-miss-AITW/GoogleApps/'
     logfile = f"./log/{args['exp_name']}_lr{args['lr']}_wd{args['wd']}_im{param.get('num_image_with_embedding')}_log.txt"
     tokenizer = BertTokenizer.from_pretrained('bert-base-uncased', do_lower_case=True)
-    TrainDataset = AITW_Dataset(annotations_file,data_path,'TRAIN',tokenizer,transform = trsfm(split='TRAIN')
+    image_size = ((288,160) if args['Pix2Struct'] else (224,224))
+    TrainDataset = AITW_Dataset(annotations_file,data_path,'TRAIN',tokenizer,transform = trsfm(image_size=image_size,split='TRAIN')
         ,num_images=param['num_image_with_embedding'])
     TrainLoader = DataLoader(TrainDataset, batch_size=int(args['bs']/args['acc_step']), num_workers=args['num_workers'], \
         shuffle=True, collate_fn = TrainDataset.collate_fn)
-    ValidDataset = AITW_Dataset(annotations_file,data_path,'VALID',tokenizer,transform = trsfm(split='VALID')
+    ValidDataset = AITW_Dataset(annotations_file,data_path,'VALID',tokenizer,transform = trsfm(image_size=image_size,split='VALID')
         ,num_images=param['num_image_with_embedding'])
     ValidLoader = DataLoader(ValidDataset, batch_size=int(args['bs']/args['acc_step']), num_workers=args['num_workers'], \
         shuffle=False, collate_fn = ValidDataset.collate_fn)
@@ -403,7 +405,7 @@ def mytrain(param,args):
         f.write(annotations_file+"\n")
         f.write(f"bs = {args['bs']}, num_epoch = {args['epoch']},\n")
         f.write(f"lr = {args['lr']}, wd = {args['wd']},\n")
-        f.write(f"2lr = {args['use_dif_lr']}, img = {param['num_image_with_embedding']},\n")
+        f.write(f"2lr = {args['use_dif_lr']}, img = {param['num_image_with_embedding']}, Pix = {args['Pix2Struct']}\n")
     for epoch in range(args['epoch']):
         train_loss = []
         model.train()
@@ -442,7 +444,29 @@ def mytrain(param,args):
         with open(logfile,"a") as f:
             f.write(f"[ Train | {epoch + 1:03d}/{args['epoch']:03d} ] loss = {total_loss:.5f}  ")
         print(f"[ Train | {epoch + 1:03d}/{args['epoch']:03d} ] loss = {total_loss:.5f}")
-
+        
+        if args['use_dif_lr']:
+            checkpoint = {
+                'model':model.state_dict(),
+                'optimizer_img':optimizer_img.state_dict(),
+                'optimizer_tex':optimizer_tex.state_dict(),
+                'optimizer_emb':optimizer_emb.state_dict(),
+                'scheduler_img':scheduler_img.state_dict(),
+                'scheduler_tex':scheduler_tex.state_dict(),
+                'scheduler_emb':scheduler_emb.state_dict(),
+            }
+        else:
+            checkpoint = {
+                'model':model.state_dict(),
+                'optimizer':optimizer.state_dict(),
+                'scheduler':scheduler.state_dict(),
+            }
+        torch.save(checkpoint,
+        f"{epoch+1}{args['ckpt_path']}{args['exp_name']}_lr{args['lr']}_wd{args['wd']}_im{param.get('num_image_with_embedding')}.ckpt")
+        # f"{args['ckpt_path']}cuda{args.get('cuda')}.ckpt")
+        
+        continue
+        ################################################################################################
         ## validation
         model.eval()
         caption_predictions = []
@@ -484,7 +508,7 @@ def mytrain(param,args):
                     'optimizer_emb':optimizer_emb.state_dict(),
                     'scheduler_img':scheduler_img.state_dict(),
                     'scheduler_tex':scheduler_tex.state_dict(),
-                    'scheduler_emb':scheduler_tex.state_dict(),
+                    'scheduler_emb':scheduler_emb.state_dict(),
                 }
             else:
                 checkpoint = {
@@ -499,50 +523,58 @@ def mytrain(param,args):
         else:
             stale += 1
             if stale >= args['pat']:
-                print(f"No improvment {args['pat']} consecutive epochs, early stopping at {epoch}")
+                print(f"No improvment {args['pat']} consecutive epochs, early stopping at {epoch+1}")
                 break
     print('--------------------------------------------end-----------------------------------------')
     print(logfile)
 
-def myinfer():
-    annotations_file = '/home/poyang/test/105_train.jsonl'
-    data_path = '/data/poyang/AITW/GoogleApps/'
+def myinfer(param,args):
+    annotations_file = '/home/poyang/GIT/test/no_miss_GoogleApps_train.jsonl'
+    data_path = '/data/poyang/no-miss-AITW/GoogleApps/'
+    logfile = f"./valid_log/{args['exp_name']}_lr{args['lr']}_wd{args['wd']}_im{param.get('num_image_with_embedding')}_log.txt"
     tokenizer = BertTokenizer.from_pretrained('bert-base-uncased', do_lower_case=True)
-    param = {'num_image_with_embedding':6}
-    model = get_git_model(tokenizer, param)
-    checkpoint = torch.load(f"/data/cv/poyang/checkpoint/first_try_bs32_lr1e-06_im6_5.ckpt")
-    model.load_state_dict(checkpoint)
-    bs = 4
-    TestDataset = AITW_Dataset(annotations_file,data_path,'VALID',tokenizer,transform = trsfm(split='VALID'))
-    TestLoader = DataLoader(TestDataset, batch_size=bs, num_workers=2, \
-        shuffle=False, collate_fn = TestDataset.collate_fn)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    image_size = ((288,160) if args['Pix2Struct'] else (224,224))
+    device = torch.device(args.get('cuda','cuda') if torch.cuda.is_available() else "cpu")
+    model = get_git_model(tokenizer, param)   
     model.to(device)
+    checkpoint = torch.load(args['load_path'])
+    print(f"load model from {args['load_path']}")
+    model.load_state_dict(checkpoint['model'])
+
+    ValidDataset = AITW_Dataset(annotations_file,data_path,'VALID',tokenizer,transform = trsfm(image_size=image_size,split='VALID')
+        ,num_images=param['num_image_with_embedding'])
+    ValidLoader = DataLoader(ValidDataset, batch_size=int(args['bs']/args['acc_step']), num_workers=args['num_workers'], \
+        shuffle=False, collate_fn = ValidDataset.collate_fn)
+    with open(logfile,"a") as f:
+        f.write(annotations_file+"\n")
+        f.write(f"bs = {args['bs']}, num_epoch = {args['epoch']},\n")
+        f.write(f"lr = {args['lr']}, wd = {args['wd']},\n")
+        f.write(f"2lr = {args['use_dif_lr']}, img = {param['num_image_with_embedding']}, Pix = {args['Pix2Struct']}\n")
+        
     model.eval()
     caption_predictions = []
     caption_references = []
-    for i,batch in enumerate(tqdm(TestLoader)):
+    for i,batch in enumerate(tqdm(ValidLoader)):
+        if i == 5:
+            break
         with torch.no_grad():
             batch['image'] = batch['image'].to(device)
             result = model(batch)
         # return a list of text: ['a b c','i am a dog']
         cap = tokenizer.batch_decode(result['predictions'], skip_special_tokens=True)
-        cap = [[i] for i in cap]
         ref = tokenizer.batch_decode(batch['caption_tokens'], skip_special_tokens=True)
-        caption_predictions += cap #[[1],[2],[3]]
-        caption_references  += ref #[ 1 , 2 , 3 ]
-        # print(ref)
-        # print(type(ref))
-        # print(cap)
-        # print(type(cap))
-        # print(caption_predictions)
-        # print(caption_references)
-    # cocoeval = Scorers(caption_predictions, caption_references)
-    cocoeval = Scorers(caption_references, caption_predictions)
-    total_score = cocoeval.compute_scores()
+        ref = [[r] for r in ref]
+        caption_predictions += cap # [ 1 , 2 , 3 ]
+        caption_references  += ref # [[1],[2],[3]]
+    print('predictions')
+    print(caption_predictions[:5])
+    print('reference')
+    print(caption_references[:5])
+    total_score = Scorers(caption_predictions, caption_references).compute_scores()
     print(f" bleu = {total_score['bleu'][3]:.5f}, CIDEr = {total_score['CIDEr']:.5f}, RougeL = {total_score['ROUGE_L']:.5f}")
-    # print(f"[ Valid | {epoch + 1:03d}/{args['epoch']:03d} ] bleu = {total_score['bleu'][3]:.5f}, CIDEr = {total_score['CIDEr']:.5f}, RougeL = {total_score['ROUGE_L']:.5f}")
-
+    with open(logfile,"a") as f:
+        f.write(f"bleu = {total_score['bleu'][3]:.5f}, CIDEr = {total_score['CIDEr']:.5f}, RougeL = {total_score['ROUGE_L']:.5f}\n")
+        
 if __name__ == '__main__':
     init_logging()
     kwargs = parse_general_args()

@@ -2,6 +2,7 @@ python -m generativeimage2text.train -p "{'type': 'mytrain', \
 'param':{'num_image_with_embedding':8}, \
 'args' :{ \
       'num_workers':4, \
+      'Pix2Struct':False,\
       'use_dif_lr': True,\
       'wd':0.0001,     \
       'lr':1e-5,    \

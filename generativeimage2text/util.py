@@ -35,12 +35,13 @@ def get_images(id, data_path, length, num_images,trsfm):
     images_stacked = torch.stack(images, dim=0)
     return images_stacked
 
-def trsfm(image_size = 224,split = 'VALID'):
+def trsfm(image_size = (224,224),split = 'VALID'):
     mean = (0.48145466, 0.4578275, 0.40821073)
     std = (0.26862954, 0.26130258, 0.27577711)
     if split == 'TRAIN':
         ret = v2.Compose(
                 [
+                    # v2.RandomResizedCrop(size=image_size, scale=(0.5,1.0), interpolation=InterpolationMode.BICUBIC),
                     v2.RandomResizedCrop(size=image_size, interpolation=InterpolationMode.BICUBIC),
                     v2.RandomAffine(degrees=0,translate=(0.2, 0.2), scale=(0.75, 1)),
                     v2.ColorJitter(brightness=0.5, contrast=0.5),
@@ -51,9 +52,7 @@ def trsfm(image_size = 224,split = 'VALID'):
     else:
         ret = v2.Compose(
                 [
-                    v2.Resize(
-                        (image_size, image_size), interpolation=InterpolationMode.BICUBIC
-                    ),
+                    v2.Resize(image_size, interpolation=InterpolationMode.BICUBIC),
                     v2.ToTensor(),
                     v2.Normalize(mean, std)
                 ]
