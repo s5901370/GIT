@@ -40,7 +40,7 @@ from .model import get_git_model
 from transformers import get_cosine_schedule_with_warmup
 import jsonlines
 from torch.utils.data import Dataset,DataLoader
-from .util import AITW_Dataset, trsfm, write_log
+from .util import AITW_Dataset,AITW_Dataset_V2 ,trsfm, write_log
 from .scorer import Scorers
 def get_data(image_file, prefix, target, tokenizer, image_transform):
     max_text_len = 40
@@ -344,17 +344,22 @@ def mytrain(param,args):
     'exp_name'
     '''
     args['lr'] = float(args['lr'])
-    annotations_file = '/home/poyang/GIT/test/no_miss_1000_train.jsonl'
-    # annotations_file = '/home/poyang/GIT/test/no_miss_GoogleApps_train.jsonl'
+    # annotations_file = '/home/poyang/GIT/test/no_miss_1000_train.jsonl'
+    annotations_file = '/home/poyang/GIT/test/no_miss_GoogleApps_train.jsonl'
     data_path = '/data/poyang/no-miss-AITW/GoogleApps/'
+    data_path_V2 = '/data/poyang/no-miss-AITW/'
     logfile = f"./log/{args['exp_name']}_lr{args['lr']}_wd{args['wd']}_im{param.get('num_image_with_embedding')}_log.txt"
     tokenizer = BertTokenizer.from_pretrained('bert-base-uncased', do_lower_case=True)
     image_size = ((288,160) if args['Pix2Struct'] else (224,224))
-    TrainDataset = AITW_Dataset(annotations_file,data_path,'TRAIN',tokenizer,transform = trsfm(image_size=image_size,split='TRAIN')
+    # TrainDataset = AITW_Dataset(annotations_file,data_path,'TRAIN',tokenizer,transform = trsfm(image_size=image_size,split='TRAIN')
+    #     ,num_images=param['num_image_with_embedding'])
+    TrainDataset = AITW_Dataset_V2(data_path_V2,'TRAIN',tokenizer,transform = trsfm(image_size=image_size,split='TRAIN')
         ,num_images=param['num_image_with_embedding'])
     TrainLoader = DataLoader(TrainDataset, batch_size=int(args['bs']/args['acc_step']), num_workers=args['num_workers'], \
         shuffle=True, collate_fn = TrainDataset.collate_fn)
-    ValidDataset = AITW_Dataset(annotations_file,data_path,'VALID',tokenizer,transform = trsfm(image_size=image_size,split='VALID')
+    # ValidDataset = AITW_Dataset(annotations_file,data_path,'VALID',tokenizer,transform = trsfm(image_size=image_size,split='VALID')
+    #     ,num_images=param['num_image_with_embedding'])
+    ValidDataset = AITW_Dataset_V2(data_path_V2,'VALID',tokenizer,transform = trsfm(image_size=image_size,split='VALID')
         ,num_images=param['num_image_with_embedding'])
     ValidLoader = DataLoader(ValidDataset, batch_size=int(args['bs']/args['acc_step']), num_workers=args['num_workers'], \
         shuffle=False, collate_fn = ValidDataset.collate_fn)
@@ -462,10 +467,11 @@ def mytrain(param,args):
                 'scheduler':scheduler.state_dict(),
             }
         torch.save(checkpoint,
-        f"{epoch+1}{args['ckpt_path']}{args['exp_name']}_lr{args['lr']}_wd{args['wd']}_im{param.get('num_image_with_embedding')}.ckpt")
+        f"{args['ckpt_path']}{args['exp_name']}_ep{epoch+1}_lr{args['lr']}_wd{args['wd']}_im{param.get('num_image_with_embedding')}.ckpt")
         # f"{args['ckpt_path']}cuda{args.get('cuda')}.ckpt")
-        
+        print(f"save {args['ckpt_path']}{args['exp_name']}_ep{epoch+1}_lr{args['lr']}_wd{args['wd']}_im{param.get('num_image_with_embedding')}.ckpt")
         continue
+        
         ################################################################################################
         ## validation
         model.eval()
@@ -531,6 +537,7 @@ def mytrain(param,args):
 def myinfer(param,args):
     annotations_file = '/home/poyang/GIT/test/no_miss_GoogleApps_train.jsonl'
     data_path = '/data/poyang/no-miss-AITW/GoogleApps/'
+    data_path_V2 = '/data/poyang/no-miss-AITW/'
     logfile = f"./valid_log/{args['exp_name']}_lr{args['lr']}_wd{args['wd']}_im{param.get('num_image_with_embedding')}_log.txt"
     tokenizer = BertTokenizer.from_pretrained('bert-base-uncased', do_lower_case=True)
     image_size = ((288,160) if args['Pix2Struct'] else (224,224))
@@ -541,12 +548,15 @@ def myinfer(param,args):
     print(f"load model from {args['load_path']}")
     model.load_state_dict(checkpoint['model'])
 
-    ValidDataset = AITW_Dataset(annotations_file,data_path,'VALID',tokenizer,transform = trsfm(image_size=image_size,split='VALID')
+    # ValidDataset = AITW_Dataset(annotations_file,data_path,'VALID',tokenizer,transform = trsfm(image_size=image_size,split='VALID')
+    #     ,num_images=param['num_image_with_embedding'])
+    ValidDataset = AITW_Dataset_V2(data_path_V2,'VALID',tokenizer,transform = trsfm(image_size=image_size,split='VALID')
         ,num_images=param['num_image_with_embedding'])
     ValidLoader = DataLoader(ValidDataset, batch_size=int(args['bs']/args['acc_step']), num_workers=args['num_workers'], \
         shuffle=False, collate_fn = ValidDataset.collate_fn)
     with open(logfile,"a") as f:
         f.write(annotations_file+"\n")
+        f.write("Validation\n")
         f.write(f"bs = {args['bs']}, num_epoch = {args['epoch']},\n")
         f.write(f"lr = {args['lr']}, wd = {args['wd']},\n")
         f.write(f"2lr = {args['use_dif_lr']}, img = {param['num_image_with_embedding']}, Pix = {args['Pix2Struct']}\n")
@@ -555,8 +565,6 @@ def myinfer(param,args):
     caption_predictions = []
     caption_references = []
     for i,batch in enumerate(tqdm(ValidLoader)):
-        if i == 5:
-            break
         with torch.no_grad():
             batch['image'] = batch['image'].to(device)
             result = model(batch)
