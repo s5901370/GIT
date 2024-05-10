@@ -84,7 +84,7 @@ def print_img(dataset,des,miss_set,jsonl_name,category):
         if step_id == 0:
             goal_info = ex.features.feature['goal_info'].bytes_list.value[0].decode('utf-8')
             writer.write({"category":category,"id":ep_id,"goal_info":goal_info,"episode_length":ep_length})
-        Image.fromarray(_decode_image(ex)).save(f"{des}{ep_id}-{step_id}-{ep_length}.jpg")
+        # Image.fromarray(_decode_image(ex)).save(f"{des}{ep_id}-{step_id}-{ep_length}.jpg")
     writer.close()
 
 def findWH(example):
@@ -100,42 +100,42 @@ def findWH(example):
 def main():
     # N = 1000
     # dir = ['general','install','web_shopping']
-    # category = 'GoogleApps'
+    category = 'WebShopping'
     # dir = ['General','GoogleApps','Install','WebShopping']
     dir = ['General','Install','WebShopping']
     # for category in dir:
-    for category in dir:
-        data_src = f'/data/poyang/android-in-the-wild/{category}/'
-        data_des = f'/data/poyang/no-miss-AITW/{category}/'
-        # jsonl_name = f'no_miss_1000_train.jsonl'
-        jsonl_name = f'no_miss_{category}_train.jsonl'
-        pkl_name = f'AiTW_Miss_Img_ID_{category}.pickle'
-        # pkl_name = f'AiTW_Miss_Img_ID_1000.pickle'
+    # for category in dir:
+    data_src = f'/data/poyang/android-in-the-wild/{category}/'
+    data_des = f'/data/poyang/no-miss-AITW/{category}/'
+    # jsonl_name = f'no_miss_1000_train.jsonl'
+    jsonl_name = f'no_miss_{category}_train.jsonl'
+    pkl_name = f'AiTW_Miss_Img_ID_{category}.pickle'
+    # pkl_name = f'AiTW_Miss_Img_ID_1000.pickle'
 
-        # pkl_name = f'AiTW_Miss_Img_ID_{category}.pickle'
-        # file0 = 'google_apps-00000-of-08688' #88
-        # file1 = 'google_apps-00001-of-08688' #205
-        files_in_directory = os.listdir(data_src)
-        # print(len(files_in_directory))#8687
-        # print(files_in_directory[:105])
-        # train_files = [data_src+file0]
-        # train_files = [data_src+file0,data_src+file1]
-        train_files = [(data_src + i) for i in files_in_directory]
+    # pkl_name = f'AiTW_Miss_Img_ID_{category}.pickle'
+    # file0 = 'google_apps-00000-of-08688' #88
+    # file1 = 'google_apps-00001-of-08688' #205
+    files_in_directory = os.listdir(data_src)
+    # print(len(files_in_directory))#8687
+    # print(files_in_directory[:105])
+    # train_files = [data_src+file0]
+    # train_files = [data_src+file0,data_src+file1]
+    train_files = [(data_src + i) for i in files_in_directory]
 
-        # last time :105
-        # last time 105:1000
-        # next time 1000:
-        # train_files = [(data_src + i) for i in files_in_directory[:1000]]
-        raw_dataset = tf.data.TFRecordDataset(train_files, compression_type='GZIP').as_numpy_iterator()
+    # last time :105
+    # last time 105:1000
+    # next time 1000:
+    # train_files = [(data_src + i) for i in files_in_directory[:1000]]
+    raw_dataset = tf.data.TFRecordDataset(train_files, compression_type='GZIP').as_numpy_iterator()
 
-        # record id who misses images
-        # find_miss_file(raw_dataset,pkl_name)
+    # record id who misses images
+    # find_miss_file(raw_dataset,pkl_name)
 
-        # load pickle
-        with open(pkl_name, 'rb') as handle:
-            loaded_set = pickle.load(handle)
-        print_img(raw_dataset,data_des,loaded_set,jsonl_name,category)
-        # print(loaded_set)
+    # load pickle
+    with open(pkl_name, 'rb') as handle:
+        loaded_set = pickle.load(handle)
+    print_img(raw_dataset,data_des,loaded_set,jsonl_name,category)
+    # print(loaded_set)
         
     
     
@@ -166,12 +166,45 @@ def countWH():
     print('total')
     print(count)
     
+def check_dup():
+     with jsonlines.open("no_miss_GoogleApps_train.jsonl") as reader:
+        miss = set()
+        for lines in reader:
+            id = lines['id']
+            if id not in miss:
+                miss.add(id)
+            else:
+                print(f'find duplicate {id}')
+    # find duplicate 3883174507157444369
+    # find duplicate 10914442784645576315
 
-
+def countImg():
+    with jsonlines.open("no_miss_GoogleApps_train.jsonl") as reader:
+        miss = dict()
+        total = 0
+        for lines in reader:
+            total += 1
+            num = lines['episode_length']
+            num = (num if num <= 30 else 30)
+            if num not in miss:
+                miss[num] = 1
+            else:
+                miss[num] += 1
+        for i in sorted(miss.keys()):
+            print(f"{i}: {miss[i]}",end=',')
+    print(f"total = {total}")
+'''
+{1: 3107,2: 9404,3: 27182,4: 49769,5: 68496,6: 74774,7: 69541,8: 57030,9: 43365,10: 33303,
+11: 24313,12: 18292,13: 13403,14: 9750,15: 7156,16: 5310,17: 4164,18: 3192,19: 2589,20: 2029,
+21: 1741,22: 1451,23: 1206,24: 976,25: 811,26: 666,27: 493,28: 510,29: 420,30: 2673}
+'''
+            
+    
 if __name__ == '__main__':
-    # main()
-    countWH()
-
+    main()
+    # countWH()
+    # check_dup()
+    # countImg()
 
 
 
