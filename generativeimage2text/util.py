@@ -154,7 +154,105 @@ class AITW_Dataset(Dataset):
         }
         
         return data
+class AITW_Dataset_V2(Dataset):
+    def __init__(self, data_path,split,tokenizer,transform, num_images=6 ):
+        self.data = []
+        self.num_images = num_images
+        self.data_path = data_path
+        self.transform = transform
+        self.tokenizer = tokenizer
+        category = ['GoogleApps','General','Install','WebShopping']
+        # Read data from JSONL file
+        for cat in category:
+            jsonl_file = f'/home/poyang/GIT/test/no_miss_{cat}_train.jsonl'
+            with jsonlines.open(jsonl_file) as reader:
+                size = sum(1 for i in reader)
+            
+            with jsonlines.open(jsonl_file) as reader:
+                if split == 'TRAIN':
+                    limit = int(size*0.8)
+                    for i,lines in enumerate(reader):
+                        if i < limit:
+                            self.data.append(lines)
+                        else:
+                            break
+                if split == 'VALID':
+                    limit = int(size*0.8)
+                    for i,lines in enumerate(reader):
+                        if i >= limit:
+                            self.data.append(lines)
 
+    def __len__(self):
+        return len(self.data)
+    
+    def collate_fn(self, samples):
+        max_length = 0
+        for x in samples:
+            max_length = max(max_length,x['caption_tokens'].shape[0])
+        for x in samples:
+            t = x['caption_tokens']
+            n = x['need_predict']
+            b1 = torch.zeros(max_length, dtype=t.dtype, device=t.device)
+            b2 = torch.zeros(max_length, dtype=n.dtype, device=n.device)
+            b1[:t.shape[0]] = t
+            b2[:n.shape[0]] = n
+            x['caption_tokens'] = b1
+            x['need_predict'] = b2
+        image_batch = torch.stack([x['image'] for x in samples])
+        caption_batch = torch.stack([x['caption_tokens'] for x in samples])
+        predict_batch = torch.stack([x['need_predict'] for x in samples])
+        data = {
+            'caption_tokens': caption_batch,
+            'need_predict': predict_batch,
+            'image': image_batch,
+        }
+        return data
+
+    def __getitem__(self, idx):
+        # {"id": "18375519518960921438", "goal_info": "Is it going to rain this weekend?", "episode_length": 8}
+        # 10002872452831025023-0-14.jpg
+        item = self.data[idx]
+        path = self.data_path + item['category']+'/'
+        images = get_images(item['id'],path,item['episode_length'],self.num_images,self.transform)
+
+        max_text_len = 40 #from train.py
+        target = item['goal_info']
+        prefix = ''
+        prefix_encoding = self.tokenizer(
+            prefix, padding='do_not_pad',
+            add_special_tokens=False,
+            truncation=True, max_length=max_text_len)
+        target_encoding = self.tokenizer(
+            target, padding='do_not_pad',
+            add_special_tokens=False,
+            truncation=True, max_length=max_text_len)
+        need_predict = [0] * len(prefix_encoding['input_ids']) + [1] * len(target_encoding['input_ids'])
+        payload = prefix_encoding['input_ids'] + target_encoding['input_ids']
+        # print('get_data')
+        # print(prefix)
+        # print(target)
+        # print(need_predict)
+        # print(payload)
+        if len(payload) > max_text_len:
+            payload = payload[-(max_text_len - 2):]
+            need_predict = need_predict[-(max_text_len - 2):]
+        input_ids = [self.tokenizer.cls_token_id] + payload + [self.tokenizer.sep_token_id]
+        need_predict = [0] + need_predict + [1]
+        # Convert other fields to tensors as needed
+        data = {
+            'caption_tokens': torch.tensor(input_ids),
+            'need_predict': torch.tensor(need_predict),
+            'image': images,
+            # 'rect' field can be fed in 'caption', which tells the bounding box
+            # region of the image that is described by the caption. In this case,
+            # we can optionally crop the region.
+            # 'caption': {},
+            # this iteration can be used for crop-size selection so that all GPUs
+            # can process the image with the same input size
+            # 'iteration': 0
+        }
+        
+        return data
 def main():
     annotations_file = '/local/poyang/test/105_train.jsonl'
     data_path = '/data/cv/poyang/AITW/GoogleApps/'
