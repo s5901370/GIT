@@ -9,7 +9,7 @@ This repo presents some example codes to reproduce some results in
 
 - Download the source code by
   ```shell
-  git clone https://github.com/microsoft/GenerativeImage2Text.git
+  git clone https://github.com/s5901370/GIT.git
   cd GenerativeImage2Text
   ```
 
