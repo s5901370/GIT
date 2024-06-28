@@ -19,7 +19,6 @@ This repo presents some example codes to reproduce some results in
   python setup.py build develop
   sudo apt install openjdk-11-jdk
   ```
-# Before Starting
 
 # Inference
 - Change the **annotation_files** and **data_path** in the [generativeimage2text/train.py](https://github.com/s5901370/GIT/blob/6a346b502253761a71776f5236e60226ba3d5cc3/generativeimage2text/train.py#L538)
