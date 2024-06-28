@@ -1,4 +1,4 @@
-# Introduction
+# Introduction 
 This repo presents some example codes to reproduce some results in
 [GIT: A Generative Image-to-text Transformer for Vision and Language](https://arxiv.org/abs/2205.14100).
 
@@ -19,36 +19,49 @@ This repo presents some example codes to reproduce some results in
   python setup.py build develop
   sudo apt install openjdk-11-jdk
   ```
+# Before Starting
 
 # Inference
-- Inference on a single image or multiple frames:
-  ```shell
-  # single image, captioning
-  AZFUSE_TSV_USE_FUSE=1 python -m generativeimage2text.inference -p "{'type': 'test_git_inference_single_image', \
-        'image_path': 'aux_data/images/1.jpg', \
-        'model_name': 'GIT_BASE', \
-        'prefix': '', \
-  }"
-  # multiple images, captioning
-  AZFUSE_TSV_USE_FUSE=1 python -m generativeimage2text.inference -p "{'type': 'test_git_inference_single_image', \
-        'image_path': ['aux_data/images/1.jpg', 'aux_data/images/1.jpg', 'aux_data/images/1.jpg', 'aux_data/images/1.jpg', 'aux_data/images/1.jpg', 'aux_data/images/1.jpg'], \
-        'model_name': 'GIT_BASE_VATEX', \
-        'prefix': '', \
-  }"
+- Change the **annotation_files** and **data_path** in the [generativeimage2text/train.py](https://github.com/s5901370/GIT/blob/6a346b502253761a71776f5236e60226ba3d5cc3/generativeimage2text/train.py#L538)
+- Run the bash file "Train.sh" and replace the 'type' with 'myinfer'.
+- Please notice the 'load_path', and the correct settings of 'num_image_with_embedding', 'Pix2Struct' and 'use_dif_lr'.
   ```
-  - If `prefix` is empty, it is effectively the captioning task.
-  - Use a list for `image_path` if it is for video. The example here is 6 identical images, only
-    for a demo purpose. It should be different image frames from a video.
-# Training
-The repo shows the key code path of constructing the network
-input with transformations and forward/backward. The code can be plugged into
-any trainer easily. Here is the example for the base model.
-- Pretraining/captioning
+   python -m generativeimage2text.train -p "{'type': 'myinfer',
+  'param':{'num_image_with_embedding':8}, 
+  'args' :{
+      'num_workers':4, 
+      'Pix2Struct':False,
+      'use_dif_lr': True,
+      'wd':0.0001,     
+      'lr':1e-5,    
+      'epoch':1,    
+      'bs':32 ,     
+      'acc_step':8, 
+      'pat':2,      
+      'ckpt_path':'/data/cv/poyang/checkpoint/', 
+      'load_path':'/data/cv/poyang/checkpoint/1000_2lr_8img_lowWD_lr1e-05_wd0.0001_im8.ckpt',
+      'exp_name' :'1000_2lr_8img_lowWD'
+      }}" 
   ```
-  python -m generativeimage2text.train -p "{'type': 'forward_backward_example', \
-                  'image_files': ['aux_data/images/1.jpg', 'aux_data/images/2.jpg'], \
-                  'captions': ['a couple of boats in a large body of water.', 'a view of a mountain with a tree'], \
-              }"
+# Train
+- Change the **annotation_files** and **data_path** in the [generativeimage2text/train.py](https://github.com/s5901370/GIT/blob/6a346b502253761a71776f5236e60226ba3d5cc3/generativeimage2text/train.py#L348)
+- If you don't need to load pretrained model weight, please delete 'load_path'.
+  ```
+   python -m generativeimage2text.train -p "{'type': 'mytrain',
+  'param':{'num_image_with_embedding':8}, 
+  'args' :{
+      'num_workers':4, 
+      'Pix2Struct':False,
+      'use_dif_lr': True,
+      'wd':0.0001,     
+      'lr':1e-5,    
+      'epoch':3,    
+      'bs':32 ,     
+      'acc_step':8, 
+      'pat':2,      
+      'ckpt_path':'/data/cv/poyang/checkpoint/', 
+      'exp_name' :'1000_2lr_8img_lowWD'
+      }}" 
   ```
 # Citation
 Please consider to cite the following reference if it helps.
